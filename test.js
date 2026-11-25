@@ -41,8 +41,6 @@ assert.strictEqual(KB.renameClass('public class Main {\n  Main() {}\n  public st
   'public class Main031 {\n  Main031() {}\n  public static void main(String[] a) { Main031 m = new Main031(); Main031.run(); System.out.println("Main"); } // Main\n}');
 assert.strictEqual(KB.renameClass("class Main { static Main x; } class MainHelper {}", "Q"), "class Q { static Q x; } class MainHelper {}");
 assert.strictEqual(KB.renameClass('// class Main\nint x;', "Q"), '// class Main\nint x;');
-assert.strictEqual(KB.curFolder("kbigdata_350/Java"), "k-bigdataPortal/기초350/Java");
-assert.strictEqual(KB.curFolder("my/Java"), "my/Java");
 assert.strictEqual(KB.fileName("valid_triangle", "py"), "valid_triangle");
 assert.strictEqual(KB.fileName("main031.java"), "main031");
 assert.strictEqual(KB.fileName("삼각형"), "삼각형");
@@ -53,4 +51,6 @@ assert.strictEqual(KB.fileName("../x", "sh"), null);
 assert.ok(KB.friendly("Failed to fetch").includes("인터넷"));
 assert.strictEqual(KB.friendly("GitHub 401: x"), "GitHub 401: x");
 assert.ok(KB.readme({ id: "J-1", title: "a<b>c", url: "u", name: "n", date: "d" }).startsWith("# [J-1] a\\<b\\>c"));
+assert.strictEqual(KB.idName("R-SQL-0019", "sql"), "Query0019");
+assert.strictEqual(KB.folderFor("x/Java", "R-SQL-0019", "sql"), "k-bigdataPortal/정보처리실기/SQL");
 console.log("ok");

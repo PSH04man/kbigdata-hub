@@ -1,4 +1,4 @@
-const fields = { token: "", askFirst: true, withProblem: true, repo: "", branch: "", folder: "k-bigdataPortal/기초350/Java" };
+const fields = { token: "", askFirst: true, withProblem: true, repo: "", branch: "", folder: KB.FOLDER };
 const $ = id => document.getElementById(id);
 
 // 토큰 보기/숨기기 (잘못 붙여 넣었는지 눈으로 확인)
@@ -20,7 +20,6 @@ for (const b of themeBtns) b.onclick = () => { setTheme(b.dataset.theme); chrome
 chrome.storage.local.get({ theme: "" }, cfg => setTheme(cfg.theme));
 
 chrome.storage.local.get(fields, cfg => {
-  cfg.folder = KB.curFolder(cfg.folder);
   for (const k in fields) $(k)[typeof fields[k] === "boolean" ? "checked" : "value"] = cfg[k];
 });
 $("save").onclick = () => {

@@ -23,9 +23,10 @@ const KB = {
     }[service]?.[status];
     return `${service} ${status}: ${msg || "알 수 없는 오류예요."}`;
   },
-  // 기본 이름: JAVA-030 → Main030 (번호가 없으면 Main)
-  idName(id) {
-    return "Main" + (String(id).match(/\d+$/)?.[0] || "");
+  FOLDER: "k-bigdataPortal/기초350/Java", // 350제 Java 기본 폴더
+  // 기본 이름: JAVA-030 → Main030, 실기 SQL 은 Query019
+  idName(id, ext) {
+    return (ext === "sql" ? "Query" : "Main") + (String(id).match(/\d+$/)?.[0] || "");
   },
   // 저장소 칸: 주소를 통째로 붙여 넣어도 "아이디/저장소"로 정리, 안 되면 null
   normRepo(text) {
@@ -43,12 +44,9 @@ const KB = {
     const [dir, ext] = known[prefix] || [prefix, "txt"];
     return { dir, ext };
   },
-  // 예전 기본 폴더로 저장해 둔 설정은 새 기본 폴더로
-  curFolder(folder) {
-    return folder === "kbigdata_350/Java" ? "k-bigdataPortal/기초350/Java" : folder;
-  },
-  // 설정 폴더(Java 용) 옆에 언어별 폴더: k-bigdataPortal/기초350/Java → k-bigdataPortal/기초350/C
-  folderFor(folder, id) {
+  // 설정 폴더(Java 용) 옆에 언어별 폴더: …/기초350/Java → …/기초350/C. 실기 SQL 은 고정
+  folderFor(folder, id, ext) {
+    if (ext === "sql") return "k-bigdataPortal/정보처리실기/SQL";
     const { dir } = KB.lang(id);
     if (dir === "Java") return folder;
     return [folder.replace(/(^|\/)Java$/i, ""), dir].filter(Boolean).join("/");

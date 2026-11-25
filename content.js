@@ -1,63 +1,49 @@
 // '맞혔어요' 클릭을 잡아서 이름을 정하고 background 로 넘긴다
 const CHANGED = "포털 화면이 바뀌어서 문제 정보를 못 찾았어요. 확장프로그램 업데이트가 필요해요.";
-const SQL_FOLDER = "k-bigdataPortal/정보처리실기/SQL";
 const STALE = "확장프로그램이 새로고침(업데이트)됐어요. 이 페이지를 새로고침한 뒤 다시 해 주세요.";
 const BAD_NAME = "이름에는 글자·숫자·_ 만 쓸 수 있고 숫자로 시작할 수 없어요. '맞혔어요'를 다시 눌러 주세요.";
 const stale = () => !chrome.runtime?.id && (card.show({ head: "새로고침이 필요해요", text: STALE, tone: "err" }), true); // 확장이 갈리면 옛 탭은 먹통
 document.addEventListener("click", e => {
-  if (location.pathname?.endsWith("/practical.html")) { // 실기: 직접 쓰는 SQL 작성 문제만 올림
-    if (!e.target.closest?.('.study-review [data-grade="correct"]') || stale()) return;
-    const answer = document.querySelector('textarea#my-answer[rows="7"]'); // rows=7 은 SQL 작성 유형
-    const id = new URL(location.href).searchParams.get("id");
-    if (!answer || !id) return;
-    if (!answer.value.trim()) return card.show({ text: "작성한 SQL이 없어서 올리지 않았어요." });
-    const title = document.querySelector("#solve-title")?.textContent.trim() || id;
-    return sqlUpload({ id, title, code: answer.value, url: location.href });
-  }
-  const btn = e.target.closest?.('#coding-review-slot [data-grade="correct"]');
-  if (!btn) { // 글자는 '맞혔어요'인데 위치가 다르면 포털 화면이 바뀐 것
-    if (e.target.closest?.("button, a, [role=button]")?.textContent.trim() === "맞혔어요") card.show({ head: "올릴 수 없어요", text: CHANGED, tone: "err" });
-    return;
-  }
-  if (stale()) return;
-  const idEl = document.querySelector("#coding-id"), editor = document.querySelector("#coding-editor");
-  if (!idEl || !editor) return card.show({ head: "올릴 수 없어요", text: CHANGED, tone: "err" });
-  const id = idEl.textContent.trim();
-  const code = editor.value || "";
-  const title = document.querySelector("#coding-title")?.textContent.trim() || id;
-  if (!code.trim()) return card.show({ text: "작성한 코드가 없어서 올리지 않았어요." });
-  const { ext } = KB.lang(id);
-  const url = location.href, shown = readProblem(); // 확인 창이 떠 있는 동안 문제가 바뀌어도 누른 순간의 문제를 씀
-  chrome.storage.local.get({ askFirst: true, folder: "k-bigdataPortal/기초350/Java", theme: "", names: {} }, async cfg => {
+  const found = location.pathname?.endsWith("/practical.html") ? sqlAnswer(e) : codingAnswer(e);
+  if (!found || stale()) return;
+  if (found.broken) return card.show({ head: "올릴 수 없어요", text: CHANGED, tone: "err" });
+  if (!found.code.trim()) return card.show({ text: "작성한 답이 없어서 올리지 않았어요." });
+  solved(found);
+}, true);
+
+// 실기: 직접 쓰는 SQL 작성 문제만 (rows=7 이 SQL 작성 유형)
+function sqlAnswer(e) {
+  if (!e.target.closest?.('.study-review [data-grade="correct"]')) return;
+  const answer = document.querySelector('textarea#my-answer[rows="7"]');
+  const id = new URL(location.href).searchParams.get("id");
+  if (!answer || !id) return;
+  return { id, title: document.querySelector("#solve-title")?.textContent.trim() || id, code: answer.value, ext: "sql" };
+}
+
+// 350제. 글자는 '맞혔어요'인데 위치나 칸이 다르면 포털 화면이 바뀐 것
+function codingAnswer(e) {
+  if (!e.target.closest?.('#coding-review-slot [data-grade="correct"]'))
+    return e.target.closest?.("button, a, [role=button]")?.textContent.trim() === "맞혔어요" ? { broken: true } : null;
+  const id = document.querySelector("#coding-id")?.textContent.trim(), editor = document.querySelector("#coding-editor");
+  if (!id || !editor) return { broken: true };
+  return { id, title: document.querySelector("#coding-title")?.textContent.trim() || id, code: editor.value, ext: KB.lang(id).ext, problem: readProblem() };
+}
+
+// 문제 정보는 누른 순간의 것을 씀 (확인 창이 떠 있는 동안 문제가 바뀌어도)
+function solved({ id, title, code, ext, problem }) {
+  const url = location.href;
+  chrome.storage.local.get({ askFirst: true, withProblem: true, folder: KB.FOLDER, theme: "" }, async cfg => {
     card.theme(cfg.theme);
-    cfg.folder = KB.curFolder(cfg.folder);
-    // 같은 문제를 다시 올리면 같은 파일: GitHub 폴더에 있는 이름 → 없으면 이 브라우저 기억
-    const old = (await chrome.runtime.sendMessage({ type: "existingName", id, title }).catch(() => null))?.name;
-    let name = old || cfg.names[id] || KB.idName(id);
+    // 같은 문제를 다시 올리면 GitHub 폴더에 있는 이름을 그대로
+    const old = (await chrome.runtime.sendMessage({ type: "existingName", id, title, ext }).catch(() => null))?.name;
+    let name = old || KB.idName(id, ext);
     if (cfg.askFirst) {
-      const typed = await card.ask({ id, title, folder: KB.folderFor(cfg.folder, id), name, ext, old });
+      const typed = await card.ask({ id, title, folder: KB.folderFor(cfg.folder, id, ext), name, ext, old });
       if (typed === null) return card.show({ text: "올리지 않았어요." });
       name = KB.fileName(typed, ext);
       if (!name) return card.show({ text: BAD_NAME, tone: "err" });
     }
-    const { withProblem } = await new Promise(done => chrome.storage.local.get({ withProblem: true }, done));
-    send({ id, code, title, name, url, ext, problem: withProblem ? shown : null });
-  });
-}, true);
-
-
-function sqlUpload({ id, title, code, url }) {
-  chrome.storage.local.get({ askFirst: true, theme: "", names: {} }, async cfg => {
-    card.theme(cfg.theme);
-    const old = (await chrome.runtime.sendMessage({ type: "existingName", id, title, ext: "sql" }).catch(() => null))?.name;
-    let name = old || cfg.names[id] || "Query" + (id.match(/\d+$/)?.[0] || "");
-    if (cfg.askFirst) {
-      const typed = await card.ask({ id, title, folder: SQL_FOLDER, name, ext: "sql", old });
-      if (typed === null) return card.show({ text: "올리지 않았어요." });
-      name = KB.fileName(typed, "sql");
-      if (!name) return card.show({ text: BAD_NAME, tone: "err" });
-    }
-    send({ id, code, title, name, url, ext: "sql" });
+    send({ id, code, title, name, url, ext, problem: cfg.withProblem ? problem : null });
   });
 }
 
