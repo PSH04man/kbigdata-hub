@@ -1,0 +1,32 @@
+<!doctype html>
+<meta charset="utf-8">
+<!-- 스토어 스크린샷 1: '맞혔어요' 뒤 가운데 확인 창 (content.js 카드 CSS 그대로) -->
+<style>
+  @font-face { font-family: "Pretendard"; font-weight: 45 920; src: url(../../fonts/PretendardVariable.woff2) format("woff2-variations"); }
+  :root { --bg:#fff; --text:#191f28; --sub:#8b95a1; --fill:#f2f4f6; --blue:#3182f6; }
+  html, body { margin: 0; width: 1280px; height: 800px; overflow: hidden; }
+  body { background: url(bg.png); font: 15px/1.5 "Pretendard", sans-serif; }
+  .dim { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: grid; place-items: center; }
+  .c { width: 380px; padding: 24px; border-radius: 20px; background: var(--bg); color: var(--text); box-shadow: 0 8px 32px rgba(0,0,0,.18); }
+  h3 { margin: 0 0 4px; font-size: 18px; font-weight: 700; }
+  p { margin: 0; color: var(--sub); font-size: 13px; }
+  input { width: 100%; box-sizing: border-box; height: 44px; margin: 14px 0 4px; padding: 0 14px; border: 2px solid var(--blue);
+          border-radius: 12px; background: var(--fill); color: var(--text); font: inherit; outline: none; }
+  .btns { display: flex; gap: 8px; margin-top: 12px; }
+  button { flex: 1; height: 44px; border: 0; border-radius: 12px; font: inherit; font-weight: 700; }
+  .no { background: var(--fill); color: var(--text); } .yes { background: var(--blue); color: #fff; }
+  .cap { position: fixed; left: 0; right: 0; top: 56px; text-align: center; color: #fff; }
+  .cap b { display: block; font-size: 34px; font-weight: 800; letter-spacing: -0.5px; }
+  .cap span { font-size: 18px; opacity: .9; }
+  .cap { text-shadow: 0 2px 12px rgba(0,0,0,.5); }
+  .dim { background: linear-gradient(180deg, rgba(0,0,0,.75) 0%, rgba(0,0,0,.5) 30%, rgba(0,0,0,.45) 100%); }
+</style>
+<div class="dim">
+  <div class="cap"><b>맞히면 바로 GitHub로</b><span>'맞혔어요'를 누르면 내 코드를 올릴지 물어봐요</span></div>
+  <div class="c">
+    <h3>GitHub에 올릴까요?</h3>
+    <p>[JAVA-030] 삼각형 성립 여부<br>k-bigdataPortal/기초350/Java/JAVA-030. 삼각형 성립 여부/(이름).java</p>
+    <input value="Main030">
+    <div class="btns"><button class="no">취소</button><button class="yes">올리기</button></div>
+  </div>
+</div>

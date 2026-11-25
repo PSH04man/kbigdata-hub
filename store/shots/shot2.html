@@ -1,0 +1,33 @@
+<!doctype html>
+<meta charset="utf-8">
+<!-- 스토어 스크린샷 2: 설정 팝업(options.html 그대로) + 오른쪽 아래 '저장했어요' 알림 -->
+<style>
+  @font-face { font-family: "Pretendard"; font-weight: 45 920; src: url(../../fonts/PretendardVariable.woff2) format("woff2-variations"); }
+  html, body { margin: 0; width: 1280px; height: 800px; overflow: hidden; }
+  body { background: url(bg.png); font: 15px/1.5 "Pretendard", sans-serif; }
+  .shade { position: fixed; inset: 0; background: linear-gradient(90deg, rgba(25,31,40,.85) 0%, rgba(25,31,40,.6) 45%, rgba(25,31,40,.2) 100%); }
+  .pop { position: fixed; top: 24px; right: 40px; width: 360px; height: 520px; border: 0; border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,.25); background: #fff; }
+  .toast { position: fixed; right: 24px; bottom: 24px; width: 340px; padding: 20px; border-radius: 20px; background: #fff;
+           box-shadow: 0 8px 32px rgba(0,0,0,.18); }
+  .toast h3 { margin: 0 0 4px; font-size: 18px; font-weight: 700; color: #03b26c; }
+  .toast p { margin: 0; color: #8b95a1; font-size: 13px; }
+  .cap { position: fixed; left: 56px; top: 250px; width: 600px; color: #fff; }
+  .cap b { display: block; font-size: 34px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.3; }
+  .cap span { font-size: 18px; opacity: .9; }
+  .cap { text-shadow: 0 2px 12px rgba(0,0,0,.35); }
+</style>
+<div class="shade"></div>
+<div class="cap"><b>Main+문제 번호<br>설정은 아이콘 한 번에</b><span>확인하고 올리기만 누르면 돼요</span></div>
+<iframe class="pop" id="pop" src="../../options.html"></iframe>
+<div class="toast"><h3>저장했어요</h3><p>k-bigdataPortal/기초350/Java/JAVA-030. 삼각형 성립 여부/Main030.java</p></div>
+<script>
+  // 확장프로그램 밖이라 chrome.storage 가 없어서 화면 상태만 채운다
+  pop.onload = () => {
+    const d = pop.contentDocument;
+    d.documentElement.dataset.theme = "light";
+    d.querySelector('.theme [data-theme=light]').classList.add("on");
+    d.getElementById("askFirst").checked = d.getElementById("withProblem").checked = true;
+    d.getElementById("token").value = "github_pat_xxxxxxxxxxxxxxxx";
+    d.getElementById("askFirst").checked = true;
+  };
+</script>
