@@ -70,12 +70,12 @@ function styleRetry(button, half) {
     style.id = "kb-hub-retry-style";
     style.textContent = `
       button.kb-hub-retry { display: inline-block; vertical-align: top; box-sizing: border-box; width: 100%; height: 52px; margin: 8px 0 0; padding: 0;
-        border: 0; border-radius: 14px; background: #f2f4f6; color: #4e5968; font: 700 16px/1 "Pretendard", -apple-system, "Malgun Gothic", sans-serif;
+        border: 0; border-radius: 14px; background: #f4f4f4; color: #525252; font: 700 16px/1 "Pretendard", -apple-system, "Malgun Gothic", sans-serif;
         cursor: pointer; transition: background .15s, transform .1s; }
       button.kb-hub-retry.kb-hub-half { width: calc(50% - 4px); }
-      button.kb-hub-retry:hover { background: #e5e8eb; }
+      button.kb-hub-retry:hover { background: #e0e0e0; }
       button.kb-hub-retry:active { transform: scale(.98); }
-      button.kb-hub-retry:focus-visible { outline: 2px solid #3182f6; outline-offset: 2px; }`;
+      button.kb-hub-retry:focus-visible { outline: 2px solid #0f62fe; outline-offset: 2px; }`;
     document.head.append(style);
   }
   button.classList.add("kb-hub-retry");
@@ -87,11 +87,11 @@ function uploadButton() {
   const host = document.createElement("kb-hub-upload");
   const root = host.attachShadow({ mode: "open" });
   root.innerHTML = `<style>
-    button { width: 100%; height: 52px; border: 0; border-radius: 14px; background: rgba(49,130,246,.12); color: #1b64da;
+    button { width: 100%; height: 52px; border: 0; border-radius: 14px; background: #edf5ff; color: #0043ce;
              font: 700 16px/1 "Pretendard", -apple-system, "Malgun Gothic", sans-serif; cursor: pointer; transition: background .15s, transform .1s; }
-    button:hover { background: rgba(49,130,246,.2); }
+    button:hover { background: #d0e2ff; }
     button:active { transform: scale(.98); }
-    button:focus-visible { outline: 2px solid #3182f6; outline-offset: 2px; }
+    button:focus-visible { outline: 2px solid #0f62fe; outline-offset: 2px; }
   </style><button type="button">GitHub에 올리기</button>`;
   root.querySelector("button").onclick = () => {
     const found = practical() ? readSql() : readCoding();
@@ -112,6 +112,7 @@ function solved(found, url = location.href) {
     : again ? "지금 화면에 있는 코드를 올려요. 포털 풀이 기록은 바뀌지 않아요." : "";
   chrome.storage.local.get({ askFirst: true, withProblem: true, folder: KB.FOLDER, theme: "" }, async cfg => {
     card.theme(cfg.theme);
+    card.show({ text: "GitHub 확인 중…", keep: true });
     // 같은 문제를 다시 올리면 GitHub 폴더에 있는 이름을 그대로
     const old = (await chrome.runtime.sendMessage({ type: "existingName", id, title, ext }).catch(() => null))?.name;
     let name = old || KB.idName(id, ext);
@@ -144,7 +145,7 @@ function readProblem() {
 function send(msg) {
   card.show({ text: "GitHub에 올리는 중…", keep: true });
   chrome.runtime.sendMessage(msg, res => res?.ok
-    ? card.show({ head: "저장했어요", text: res.path, tone: "ok" })
+    ? card.show({ head: "저장했어요", path: res.path, tone: "ok" })
     // 채점한 문제는 '맞혔어요'가 비활성이라, 다시 올리는 버튼은 여기에 있어야 함
     : card.show({ head: "올리지 못했어요", text: res?.error || chrome.runtime.lastError?.message, tone: "err", action: ["다시 올리기", () => stale() || send(msg)] }));
 }
@@ -154,8 +155,9 @@ const card = (() => {
   let host, root, timer;
   const css = `
     @font-face { font-family: "Pretendard"; font-weight: 45 920; src: url(${chrome.runtime.getURL("fonts/PretendardVariable.woff2")}) format("woff2-variations"); }
-    :host { --bg:#fff; --text:#191f28; --sub:#8b95a1; --fill:#f2f4f6; --blue:#3182f6; --red:#f04452; --green:#03b26c; }
-    :host([data-theme=dark]) { --bg:#202027; --text:#e4e4e5; --sub:#9e9ea4; --fill:#2c2c35; }
+    /* 색: IBM Carbon Design System (Apache-2.0) */
+    :host { --bg:#fff; --text:#161616; --sub:#6f6f6f; --fill:#f4f4f4; --blue:#0f62fe; --red:#da1e28; --green:#198038; }
+    :host([data-theme=dark]) { --bg:#262626; --text:#f4f4f4; --sub:#c6c6c6; --fill:#393939; --red:#ff8389; --green:#42be65; }
     .c { position: fixed; right: 24px; bottom: 24px; z-index: 2147483647; width: 340px; padding: 20px; border-radius: 20px;
          background: var(--bg); color: var(--text); box-shadow: 0 8px 32px rgba(0,0,0,.18);
          font: 15px/1.5 "Pretendard", -apple-system, "Malgun Gothic", sans-serif; animation: up .2s ease-out; }
@@ -166,7 +168,10 @@ const card = (() => {
     .dim .c { position: static; width: 380px; padding: 24px; animation: pop .18s ease-out; }
     @keyframes pop { from { transform: scale(.96); opacity: 0; } }
     h3 { margin: 0 0 4px; font-size: 18px; font-weight: 700; }
-    p { margin: 0; color: var(--sub); font-size: 13px; word-break: break-all; }
+    p { margin: 0; color: var(--sub); font-size: 13px; word-break: keep-all; overflow-wrap: anywhere; }
+    p + p { margin-top: 8px; }
+    .path { margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: var(--fill); }
+    .path span { display: inline-block; max-width: 100%; }
     .ok h3 { color: var(--green); } .err h3 { color: var(--red); }
     input { width: 100%; box-sizing: border-box; height: 44px; margin: 14px 0 4px; padding: 0 14px; border: 2px solid transparent;
             border-radius: 12px; background: var(--fill); color: var(--text); font: inherit; outline: none; }
@@ -175,12 +180,14 @@ const card = (() => {
     button { flex: 1; height: 44px; border: 0; border-radius: 12px; font: inherit; font-weight: 700; cursor: pointer; }
     .no { background: var(--fill); color: var(--text); } .yes { background: var(--blue); color: #fff; }`;
 
+  function attach() {
+    if (host) return;
+    host = document.createElement("kb-hub-card");
+    root = host.attachShadow({ mode: "open" });
+    document.documentElement.append(host);
+  }
   function mount(html, cls = "", modal = false) {
-    if (!host) {
-      host = document.createElement("kb-hub-card");
-      root = host.attachShadow({ mode: "open" });
-      document.documentElement.append(host);
-    }
+    attach();
     clearTimeout(timer);
     const box = modal
       ? `<div class="dim"><div class="c" role="dialog" aria-modal="true" aria-labelledby="kbh">${html}</div></div>`
@@ -188,16 +195,18 @@ const card = (() => {
     root.innerHTML = `<style>${css}</style>${box}`;
   }
   const esc = s => String(s ?? "").replace(/[&<>"]/g, c => `&#${c.charCodeAt(0)};`);
+  // 경로는 '/' 단위로 묶어 폴더 이름 중간에서 줄이 끊기지 않게
+  const segments = s => String(s).split("/").map((part, i, all) => `<span>${esc(part)}${i < all.length - 1 ? "/" : ""}</span>`).join("");
   const close = () => { if (root) root.innerHTML = ""; };
 
   return {
     theme(t) {
-      if (!host) mount("");
+      attach(); // 빈 카드를 그리지 않음
       host.dataset.theme = t || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
     },
     // action: [버튼 이름, 할 일]. 있으면 누를 때까지 카드를 닫지 않음
-    show({ head = "", text = "", tone = "", keep = false, action }) {
-      mount((head ? `<h3>${esc(head)}</h3>` : "") + `<p>${esc(text)}</p>`
+    show({ head = "", text = "", path = "", tone = "", keep = false, action }) {
+      mount((head ? `<h3>${esc(head)}</h3>` : "") + (path ? `<p class="path">${segments(path)}</p>` : `<p>${esc(text)}</p>`)
         + (action ? `<div class="btns"><button class="no">닫기</button><button class="yes">${esc(action[0])}</button></div>` : ""), tone);
       if (action) {
         root.querySelector(".no").onclick = close;
@@ -205,7 +214,8 @@ const card = (() => {
       } else if (!keep) timer = setTimeout(close, tone === "err" ? 10000 : 5000);
     },
     ask({ id, title, folder, name, ext = "java", old, note }) {
-      mount(`<h3 id="kbh">GitHub에 올릴까요?</h3><p>[${esc(id)}] ${esc(title)}<br>${esc(folder)}/${esc(KB.dirName(id, title))}/(이름).${ext}</p>
+      mount(`<h3 id="kbh">GitHub에 올릴까요?</h3><p>[${esc(id)}] ${esc(title)}</p>
+        <p class="path">${segments(folder + "/")}<br>${segments(KB.dirName(id, title) + "/(이름)." + ext)}</p>
         ${old ? `<p>이름을 바꾸면 예전 파일(${esc(old)}.${ext})은 지워져요.</p>` : ""}
         ${note ? `<p>${esc(note)}</p>` : ""}
         <input aria-label="파일 이름" value="${esc(name)}" spellcheck="false">

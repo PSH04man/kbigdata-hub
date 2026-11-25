@@ -3,12 +3,13 @@
 <title>K-BigData Hub 설정</title>
 <style>
   /* 회색 채움 입력칸, 파란 스위치·세그먼트, 하단 꽉 찬 버튼 */
-  :root { --bg:#fff; --text:#191f28; --sub:#8b95a1; --body:#4e5968; --fill:#f2f4f6; --line:#e5e8eb; --blue:#3182f6; --blue-d:#1b64da; --seg:#fff; }
+  /* 색: IBM Carbon Design System (Apache-2.0) */
+  :root { --bg:#fff; --text:#161616; --sub:#6f6f6f; --body:#525252; --fill:#f4f4f4; --line:#e0e0e0; --blue:#0f62fe; --blue-d:#0043ce; --seg:#fff; --red:#da1e28; }
   /* 다크: 저장한 테마가 없으면 윈도우 설정을 따른다 */
   @media (prefers-color-scheme: dark) {
-    :root:not([data-theme=light]) { --bg:#17171c; --text:#e4e4e5; --sub:#7e7e87; --body:#c3c3c6; --fill:#2c2c35; --line:#2c2c35; --seg:#4d4d59; }
+    :root:not([data-theme=light]) { --bg:#161616; --text:#f4f4f4; --sub:#8d8d8d; --body:#c6c6c6; --fill:#262626; --line:#393939; --seg:#525252; --red:#ff8389; }
   }
-  :root[data-theme=dark] { --bg:#17171c; --text:#e4e4e5; --sub:#7e7e87; --body:#c3c3c6; --fill:#2c2c35; --line:#2c2c35; --seg:#4d4d59; }
+  :root[data-theme=dark] { --bg:#161616; --text:#f4f4f4; --sub:#8d8d8d; --body:#c6c6c6; --fill:#262626; --line:#393939; --seg:#525252; --red:#ff8389; }
   .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
   .theme { display: flex; padding: 2px; border-radius: 9px; background: var(--fill); }
   .theme button { width: 28px; height: 24px; border: 0; border-radius: 7px; background: none; color: var(--sub); font-size: 13px; line-height: 1; cursor: pointer; }
@@ -16,7 +17,7 @@
   @font-face { font-family: "Pretendard"; font-weight: 45 920; font-display: swap; src: url(fonts/PretendardVariable.woff2) format("woff2-variations"); }
   * { box-sizing: border-box; }
   ::-webkit-scrollbar { display: none; } /* 몇 px 넘칠 때 스크롤바가 생기지 않게 (스크롤 자체는 됨) */
-  body { width: 360px; margin: 0; padding: 16px 18px 12px; background: var(--bg); color: var(--text);
+  body { word-break: keep-all; overflow-wrap: anywhere; width: 360px; margin: 0; padding: 16px 18px 12px; background: var(--bg); color: var(--text);
          font: 15px/1.5 "Pretendard", -apple-system, "Malgun Gothic", sans-serif; }
   h1 { font-size: 20px; font-weight: 700; margin: 0 0 2px; letter-spacing: -0.3px; }
   .desc { color: var(--sub); font-size: 13px; margin: 0 0 14px; }

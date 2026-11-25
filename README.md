@@ -109,4 +109,4 @@ k-bigdataPortal/
 node test.js
 ```
 
-글꼴은 [Pretendard](fonts/LICENSE.txt)(SIL Open Font License)를 씁니다.
+글꼴은 [Pretendard](fonts/LICENSE.txt)(SIL Open Font License)를, 색은 [IBM Carbon Design System](https://github.com/carbon-design-system/carbon)(Apache-2.0)의 값을 씁니다.

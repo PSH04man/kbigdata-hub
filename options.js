@@ -36,6 +36,6 @@ $("save").onclick = () => {
 };
 function showStatus(text, err) {
   $("status").textContent = text;
-  $("status").style.color = err ? "#e5484d" : "";
+  $("status").style.color = err ? "var(--red)" : "";
   if (!err) setTimeout(() => $("status").textContent = "", 2000);
 };
