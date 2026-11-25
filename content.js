@@ -4,18 +4,23 @@ const CHANGED = "포털 화면이 바뀌어서 문제 정보를 못 찾았어요
 const STALE = "확장프로그램이 새로고침(업데이트)됐어요. 이 페이지를 새로고침한 뒤 다시 해 주세요.";
 const BAD_NAME = "이름에는 글자·숫자·_ 만 쓸 수 있고 숫자로 시작할 수 없어요.";
 const stale = () => !chrome.runtime?.id && (card.show({ head: "새로고침이 필요해요", text: STALE, tone: "err" }), true); // 확장이 갈리면 옛 탭은 먹통
-document.addEventListener("click", e => {
-  const found = location.pathname?.endsWith("/practical.html") ? sqlAnswer(e) : codingAnswer(e);
+const practical = () => location.pathname?.endsWith("/practical.html");
+document.addEventListener("click", e => handle(practical() ? sqlAnswer(e) : codingAnswer(e)), true);
+
+function handle(found) {
   if (!found || stale()) return;
   if (found.skip) return card.show({ text: SKIP });
   if (found.broken) return card.show({ head: "올릴 수 없어요", text: CHANGED, tone: "err" });
   if (!found.code.trim()) return card.show({ text: "작성한 답이 없어서 올리지 않았어요." });
   solved(found);
-}, true);
+}
 
 // 실기: 직접 쓰는 SQL 작성 문제만 올림 (rows=7 이 SQL 작성 유형). 다른 유형은 안 올린다고 알려 줌
 function sqlAnswer(e) {
-  if (!e.target.closest?.('.study-review [data-grade="correct"]')) return;
+  if (e.target.closest?.('.study-review [data-grade="correct"]')) return readSql();
+}
+
+function readSql() {
   const answer = document.querySelector("#my-answer");
   if (answer && !answer.matches('textarea[rows="7"]')) return { skip: true };
   const id = new URL(location.href).searchParams.get("id");
@@ -26,7 +31,10 @@ function sqlAnswer(e) {
 // 350제. 포털이 요소 이름을 바꿔도 견디게 예비 단서를 둠: 버튼 글자, 주소의 ?id=, 포털이 저장한 임시 답안
 function codingAnswer(e) {
   const button = e.target.closest?.('[data-grade="correct"], button, a, [role=button]');
-  if (!button || !(button.dataset.grade === "correct" || button.textContent.trim() === "맞혔어요")) return null;
+  if (button && (button.dataset.grade === "correct" || button.textContent.trim() === "맞혔어요")) return readCoding();
+}
+
+function readCoding() {
   const text = s => document.querySelector(s)?.textContent.trim();
   // 주소는 누구나 만들 수 있으니 포털의 문제 번호 모양일 때만 씀 (GitHub 경로에 들어감)
   const fromUrl = new URL(location.href).searchParams.get("id");
@@ -37,17 +45,54 @@ function codingAnswer(e) {
   return { id, title: text("#coding-title") || id, code, draft: shown === undefined, ext: KB.lang(id).ext, problem: readProblem() };
 }
 
+// 맞힌 기록이 있으면 '맞혔어요'를 다시 누르지 않고 올리는 버튼을 둠 (포털 풀이 기록은 건드리지 않음)
+function syncUploadButton() {
+  for (const review of document.querySelectorAll(".study-review")) {
+    const box = review.parentElement;
+    const mine = box.querySelector(":scope > kb-hub-upload");
+    const show = review.querySelector('[data-grade="correct"][aria-pressed="true"]')
+      && (!practical() || document.querySelector('textarea#my-answer[rows="7"]'));
+    if (!show) mine?.remove();
+    else if (!mine) box.append(uploadButton()); // 포털의 '다시 풀기' 아래에 놓임
+  }
+}
+
+// 보조 동작이라 연한 파랑, 폭을 꽉 채움 (페이지 CSS 와 섞이지 않게 shadow DOM)
+function uploadButton() {
+  const host = document.createElement("kb-hub-upload");
+  host.style.cssText = "display:block;margin-top:8px";
+  const root = host.attachShadow({ mode: "open" });
+  root.innerHTML = `<style>
+    button { width: 100%; height: 52px; border: 0; border-radius: 14px; background: rgba(49,130,246,.12); color: #1b64da;
+             font: 700 16px/1 "Pretendard", -apple-system, "Malgun Gothic", sans-serif; cursor: pointer; transition: background .15s, transform .1s; }
+    button:hover { background: rgba(49,130,246,.2); }
+    button:active { transform: scale(.98); }
+    button:focus-visible { outline: 2px solid #3182f6; outline-offset: 2px; }
+  </style><button type="button">GitHub에 올리기</button>`;
+  root.querySelector("button").onclick = () => {
+    const found = practical() ? readSql() : readCoding();
+    handle(found && { ...found, again: true });
+  };
+  return host;
+}
+
+new MutationObserver(syncUploadButton).observe(document.documentElement, { subtree: true, childList: true, attributeFilter: ["aria-pressed"] });
+syncUploadButton();
+
 // 문제 정보는 누른 순간의 것을 씀 (확인 창이 떠 있는 동안 문제가 바뀌어도)
 // url 은 누른 순간의 것. 다시 입력할 때도 그대로 넘김
 function solved(found, url = location.href) {
-  const { id, title, code, ext, problem, draft } = found;
+  const { id, title, code, ext, problem, draft, again } = found;
+  // 확인 창에 알려 줄 것. 있으면 설정과 상관없이 확인을 받음
+  const note = draft ? "화면에서 코드를 못 읽어, 포털에 임시 저장된 답을 올려요. 최신이 아닐 수 있어요."
+    : again ? "지금 화면에 있는 코드를 올려요. 포털 풀이 기록은 바뀌지 않아요." : "";
   chrome.storage.local.get({ askFirst: true, withProblem: true, folder: KB.FOLDER, theme: "" }, async cfg => {
     card.theme(cfg.theme);
     // 같은 문제를 다시 올리면 GitHub 폴더에 있는 이름을 그대로
     const old = (await chrome.runtime.sendMessage({ type: "existingName", id, title, ext }).catch(() => null))?.name;
     let name = old || KB.idName(id, ext);
-    if (cfg.askFirst || draft) { // 임시 답안은 화면보다 오래됐을 수 있어 설정과 상관없이 확인
-      const typed = await card.ask({ id, title, folder: KB.folderFor(cfg.folder, id, ext), name, ext, old, draft });
+    if (cfg.askFirst || note) {
+      const typed = await card.ask({ id, title, folder: KB.folderFor(cfg.folder, id, ext), name, ext, old, note });
       if (typed === null) return card.show({ text: "올리지 않았어요." });
       name = KB.fileName(typed, ext);
       if (!name) return card.show({ text: BAD_NAME, tone: "err", action: ["다시 입력", () => stale() || solved(found, url)] });
@@ -135,10 +180,10 @@ const card = (() => {
         root.querySelector(".yes").onclick = action[1];
       } else if (!keep) timer = setTimeout(close, tone === "err" ? 10000 : 5000);
     },
-    ask({ id, title, folder, name, ext = "java", old, draft }) {
+    ask({ id, title, folder, name, ext = "java", old, note }) {
       mount(`<h3 id="kbh">GitHub에 올릴까요?</h3><p>[${esc(id)}] ${esc(title)}<br>${esc(folder)}/${esc(KB.dirName(id, title))}/(이름).${ext}</p>
         ${old ? `<p>이름을 바꾸면 예전 파일(${esc(old)}.${ext})은 지워져요.</p>` : ""}
-        ${draft ? "<p>화면에서 코드를 못 읽어, 포털에 임시 저장된 답을 올려요. 최신이 아닐 수 있어요.</p>" : ""}
+        ${note ? `<p>${esc(note)}</p>` : ""}
         <input aria-label="파일 이름" value="${esc(name)}" spellcheck="false">
         <div class="btns"><button class="no">취소</button><button class="yes">올리기</button></div>`, "", true);
       const input = root.querySelector("input");
