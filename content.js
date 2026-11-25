@@ -1,4 +1,5 @@
 // '맞혔어요' 클릭을 잡아서 이름을 정하고 background 로 넘긴다
+const SKIP = "답만 적는 유형이라 GitHub에 올리지 않았어요. 실기는 SQL 작성 문제만 올려요.";
 const CHANGED = "포털 화면이 바뀌어서 문제 정보를 못 찾았어요. 확장프로그램 업데이트가 필요해요.";
 const STALE = "확장프로그램이 새로고침(업데이트)됐어요. 이 페이지를 새로고침한 뒤 다시 해 주세요.";
 const BAD_NAME = "이름에는 글자·숫자·_ 만 쓸 수 있고 숫자로 시작할 수 없어요.";
@@ -6,15 +7,17 @@ const stale = () => !chrome.runtime?.id && (card.show({ head: "새로고침이 �
 document.addEventListener("click", e => {
   const found = location.pathname?.endsWith("/practical.html") ? sqlAnswer(e) : codingAnswer(e);
   if (!found || stale()) return;
+  if (found.skip) return card.show({ text: SKIP });
   if (found.broken) return card.show({ head: "올릴 수 없어요", text: CHANGED, tone: "err" });
   if (!found.code.trim()) return card.show({ text: "작성한 답이 없어서 올리지 않았어요." });
   solved(found);
 }, true);
 
-// 실기: 직접 쓰는 SQL 작성 문제만 (rows=7 이 SQL 작성 유형)
+// 실기: 직접 쓰는 SQL 작성 문제만 올림 (rows=7 이 SQL 작성 유형). 다른 유형은 안 올린다고 알려 줌
 function sqlAnswer(e) {
   if (!e.target.closest?.('.study-review [data-grade="correct"]')) return;
-  const answer = document.querySelector('textarea#my-answer[rows="7"]');
+  const answer = document.querySelector("#my-answer");
+  if (answer && !answer.matches('textarea[rows="7"]')) return { skip: true };
   const id = new URL(location.href).searchParams.get("id");
   if (!answer || !id) return;
   return { id, title: document.querySelector("#solve-title")?.textContent.trim() || id, code: answer.value, ext: "sql" };
