@@ -1,7 +1,7 @@
 // '맞혔어요' 클릭을 잡아서 이름을 정하고 background 로 넘긴다
 const CHANGED = "포털 화면이 바뀌어서 문제 정보를 못 찾았어요. 확장프로그램 업데이트가 필요해요.";
 const STALE = "확장프로그램이 새로고침(업데이트)됐어요. 이 페이지를 새로고침한 뒤 다시 해 주세요.";
-const BAD_NAME = "이름에는 글자·숫자·_ 만 쓸 수 있고 숫자로 시작할 수 없어요. '맞혔어요'를 다시 눌러 주세요.";
+const BAD_NAME = "이름에는 글자·숫자·_ 만 쓸 수 있고 숫자로 시작할 수 없어요.";
 const stale = () => !chrome.runtime?.id && (card.show({ head: "새로고침이 필요해요", text: STALE, tone: "err" }), true); // 확장이 갈리면 옛 탭은 먹통
 document.addEventListener("click", e => {
   const found = location.pathname?.endsWith("/practical.html") ? sqlAnswer(e) : codingAnswer(e);
@@ -30,8 +30,9 @@ function codingAnswer(e) {
 }
 
 // 문제 정보는 누른 순간의 것을 씀 (확인 창이 떠 있는 동안 문제가 바뀌어도)
-function solved({ id, title, code, ext, problem }) {
-  const url = location.href;
+// url 은 누른 순간의 것. 다시 입력할 때도 그대로 넘김
+function solved(found, url = location.href) {
+  const { id, title, code, ext, problem } = found;
   chrome.storage.local.get({ askFirst: true, withProblem: true, folder: KB.FOLDER, theme: "" }, async cfg => {
     card.theme(cfg.theme);
     // 같은 문제를 다시 올리면 GitHub 폴더에 있는 이름을 그대로
@@ -41,7 +42,7 @@ function solved({ id, title, code, ext, problem }) {
       const typed = await card.ask({ id, title, folder: KB.folderFor(cfg.folder, id, ext), name, ext, old });
       if (typed === null) return card.show({ text: "올리지 않았어요." });
       name = KB.fileName(typed, ext);
-      if (!name) return card.show({ text: BAD_NAME, tone: "err" });
+      if (!name) return card.show({ text: BAD_NAME, tone: "err", action: ["다시 입력", () => stale() || solved(found, url)] });
     }
     send({ id, code, title, name, url, ext, problem: cfg.withProblem ? problem : null });
   });
@@ -67,7 +68,8 @@ function send(msg) {
   card.show({ text: "GitHub에 올리는 중…", keep: true });
   chrome.runtime.sendMessage(msg, res => res?.ok
     ? card.show({ head: "저장했어요", text: res.path, tone: "ok" })
-    : card.show({ head: "올리지 못했어요", text: res?.error || chrome.runtime.lastError?.message, tone: "err" }));
+    // 채점한 문제는 '맞혔어요'가 비활성이라, 다시 올리는 버튼은 여기에 있어야 함
+    : card.show({ head: "올리지 못했어요", text: res?.error || chrome.runtime.lastError?.message, tone: "err", action: ["다시 올리기", () => stale() || send(msg)] }));
 }
 
 // 오른쪽 아래 알림 카드 (페이지 CSS 와 섞이지 않게 shadow DOM)
@@ -116,9 +118,14 @@ const card = (() => {
       if (!host) mount("");
       host.dataset.theme = t || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
     },
-    show({ head = "", text = "", tone = "", keep = false }) {
-      mount((head ? `<h3>${esc(head)}</h3>` : "") + `<p>${esc(text)}</p>`, tone);
-      if (!keep) timer = setTimeout(close, tone === "err" ? 10000 : 5000);
+    // action: [버튼 이름, 할 일]. 있으면 누를 때까지 카드를 닫지 않음
+    show({ head = "", text = "", tone = "", keep = false, action }) {
+      mount((head ? `<h3>${esc(head)}</h3>` : "") + `<p>${esc(text)}</p>`
+        + (action ? `<div class="btns"><button class="no">닫기</button><button class="yes">${esc(action[0])}</button></div>` : ""), tone);
+      if (action) {
+        root.querySelector(".no").onclick = close;
+        root.querySelector(".yes").onclick = action[1];
+      } else if (!keep) timer = setTimeout(close, tone === "err" ? 10000 : 5000);
     },
     ask({ id, title, folder, name, ext = "java", old }) {
       mount(`<h3 id="kbh">GitHub에 올릴까요?</h3><p>[${esc(id)}] ${esc(title)}<br>${esc(folder)}/${esc(KB.dirName(id, title))}/(이름).${ext}</p>

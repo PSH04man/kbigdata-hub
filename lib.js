@@ -8,7 +8,7 @@ const KB = {
   },
   // 네트워크 오류 같은 영어 메시지를 한국어로
   friendly(message) {
-    return /failed to fetch|networkerror|load failed/i.test(message) ? "인터넷에 연결할 수 없어요. 연결을 확인하고 '맞혔어요'를 다시 눌러 주세요." : message;
+    return /failed to fetch|networkerror|load failed/i.test(message) ? "인터넷에 연결할 수 없어요. 연결을 확인하고 '다시 올리기'를 눌러 주세요." : message;
   },
   // API 오류 코드 → 한국어 설명
   explain(service, status) {
@@ -17,7 +17,7 @@ const KB = {
         401: "토큰이 틀렸거나 만료됐어요. 설정에서 토큰을 새로 넣어 주세요.",
         403: "토큰에 쓰기 권한이 없어요. 토큰의 Contents 권한을 Read and write로 바꿔 주세요.",
         404: "저장소·브랜치를 못 찾았어요. 설정의 저장소 이름과 토큰의 저장소 선택을 확인해 주세요.",
-        409: "같은 파일이 동시에 바뀌었어요. '맞혔어요'를 다시 눌러 주세요.",
+        409: "같은 파일이 동시에 바뀌었어요. '다시 올리기'를 눌러 주세요.",
         422: "GitHub가 요청을 거절했어요. 폴더·파일 이름을 확인해 주세요.",
       },
     }[service]?.[status];
