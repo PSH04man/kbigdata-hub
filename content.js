@@ -20,26 +20,31 @@ function sqlAnswer(e) {
   return { id, title: document.querySelector("#solve-title")?.textContent.trim() || id, code: answer.value, ext: "sql" };
 }
 
-// 350제. 글자는 '맞혔어요'인데 위치나 칸이 다르면 포털 화면이 바뀐 것
+// 350제. 포털이 요소 이름을 바꿔도 견디게 예비 단서를 둠: 버튼 글자, 주소의 ?id=, 포털이 저장한 임시 답안
 function codingAnswer(e) {
-  if (!e.target.closest?.('#coding-review-slot [data-grade="correct"]'))
-    return e.target.closest?.("button, a, [role=button]")?.textContent.trim() === "맞혔어요" ? { broken: true } : null;
-  const id = document.querySelector("#coding-id")?.textContent.trim(), editor = document.querySelector("#coding-editor");
-  if (!id || !editor) return { broken: true };
-  return { id, title: document.querySelector("#coding-title")?.textContent.trim() || id, code: editor.value, ext: KB.lang(id).ext, problem: readProblem() };
+  const button = e.target.closest?.('[data-grade="correct"], button, a, [role=button]');
+  if (!button || !(button.dataset.grade === "correct" || button.textContent.trim() === "맞혔어요")) return null;
+  const text = s => document.querySelector(s)?.textContent.trim();
+  // 주소는 누구나 만들 수 있으니 포털의 문제 번호 모양일 때만 씀 (GitHub 경로에 들어감)
+  const fromUrl = new URL(location.href).searchParams.get("id");
+  const id = text("#coding-id") || (/^[A-Za-z0-9_-]{1,90}$/.test(fromUrl) ? fromUrl : null);
+  const shown = document.querySelector("#coding-editor")?.value;
+  const code = shown ?? (id && localStorage.getItem("kbigdata:coding:draft:v1:" + id));
+  if (!id || (shown === undefined && !code)) return { broken: true };
+  return { id, title: text("#coding-title") || id, code, draft: shown === undefined, ext: KB.lang(id).ext, problem: readProblem() };
 }
 
 // 문제 정보는 누른 순간의 것을 씀 (확인 창이 떠 있는 동안 문제가 바뀌어도)
 // url 은 누른 순간의 것. 다시 입력할 때도 그대로 넘김
 function solved(found, url = location.href) {
-  const { id, title, code, ext, problem } = found;
+  const { id, title, code, ext, problem, draft } = found;
   chrome.storage.local.get({ askFirst: true, withProblem: true, folder: KB.FOLDER, theme: "" }, async cfg => {
     card.theme(cfg.theme);
     // 같은 문제를 다시 올리면 GitHub 폴더에 있는 이름을 그대로
     const old = (await chrome.runtime.sendMessage({ type: "existingName", id, title, ext }).catch(() => null))?.name;
     let name = old || KB.idName(id, ext);
-    if (cfg.askFirst) {
-      const typed = await card.ask({ id, title, folder: KB.folderFor(cfg.folder, id, ext), name, ext, old });
+    if (cfg.askFirst || draft) { // 임시 답안은 화면보다 오래됐을 수 있어 설정과 상관없이 확인
+      const typed = await card.ask({ id, title, folder: KB.folderFor(cfg.folder, id, ext), name, ext, old, draft });
       if (typed === null) return card.show({ text: "올리지 않았어요." });
       name = KB.fileName(typed, ext);
       if (!name) return card.show({ text: BAD_NAME, tone: "err", action: ["다시 입력", () => stale() || solved(found, url)] });
@@ -127,9 +132,10 @@ const card = (() => {
         root.querySelector(".yes").onclick = action[1];
       } else if (!keep) timer = setTimeout(close, tone === "err" ? 10000 : 5000);
     },
-    ask({ id, title, folder, name, ext = "java", old }) {
+    ask({ id, title, folder, name, ext = "java", old, draft }) {
       mount(`<h3 id="kbh">GitHub에 올릴까요?</h3><p>[${esc(id)}] ${esc(title)}<br>${esc(folder)}/${esc(KB.dirName(id, title))}/(이름).${ext}</p>
         ${old ? `<p>이름을 바꾸면 예전 파일(${esc(old)}.${ext})은 지워져요.</p>` : ""}
+        ${draft ? "<p>화면에서 코드를 못 읽어, 포털에 임시 저장된 답을 올려요. 최신이 아닐 수 있어요.</p>" : ""}
         <input aria-label="파일 이름" value="${esc(name)}" spellcheck="false">
         <div class="btns"><button class="no">취소</button><button class="yes">올리기</button></div>`, "", true);
       const input = root.querySelector("input");
