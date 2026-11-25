@@ -49,18 +49,42 @@ function readCoding() {
 function syncUploadButton() {
   for (const review of document.querySelectorAll(".study-review")) {
     const box = review.parentElement;
-    const mine = box.querySelector(":scope > kb-hub-upload");
+    let mine = box.querySelector(":scope > kb-hub-upload");
     const show = review.querySelector('[data-grade="correct"][aria-pressed="true"]')
       && (!practical() || document.querySelector('textarea#my-answer[rows="7"]'));
     if (!show) mine?.remove();
-    else if (!mine) box.append(uploadButton()); // 포털의 '다시 풀기' 아래에 놓임
+    else if (!mine) box.append(mine = uploadButton());
+    // 350제의 '다시 풀기'는 꾸밈이 없어 모양만 입힘 (동작은 포털 것). 실기는 포털 디자인이 있어 둠
+    const retry = !practical() && [...box.querySelectorAll(":scope > button")].find(b => b.textContent.trim() === "다시 풀기");
+    const pair = Boolean(retry && show);
+    if (retry) styleRetry(retry, pair);
+    if (show) mine.style.cssText = pair
+      ? "display:inline-block;vertical-align:top;width:calc(50% - 4px);margin:8px 0 0 8px"
+      : "display:block;margin-top:8px";
   }
+}
+
+function styleRetry(button, half) {
+  if (!document.getElementById("kb-hub-retry-style")) {
+    const style = document.createElement("style");
+    style.id = "kb-hub-retry-style";
+    style.textContent = `
+      button.kb-hub-retry { display: inline-block; vertical-align: top; box-sizing: border-box; width: 100%; height: 52px; margin: 8px 0 0; padding: 0;
+        border: 0; border-radius: 14px; background: #f2f4f6; color: #4e5968; font: 700 16px/1 "Pretendard", -apple-system, "Malgun Gothic", sans-serif;
+        cursor: pointer; transition: background .15s, transform .1s; }
+      button.kb-hub-retry.kb-hub-half { width: calc(50% - 4px); }
+      button.kb-hub-retry:hover { background: #e5e8eb; }
+      button.kb-hub-retry:active { transform: scale(.98); }
+      button.kb-hub-retry:focus-visible { outline: 2px solid #3182f6; outline-offset: 2px; }`;
+    document.head.append(style);
+  }
+  button.classList.add("kb-hub-retry");
+  button.classList.toggle("kb-hub-half", half);
 }
 
 // 보조 동작이라 연한 파랑, 폭을 꽉 채움 (페이지 CSS 와 섞이지 않게 shadow DOM)
 function uploadButton() {
   const host = document.createElement("kb-hub-upload");
-  host.style.cssText = "display:block;margin-top:8px";
   const root = host.attachShadow({ mode: "open" });
   root.innerHTML = `<style>
     button { width: 100%; height: 52px; border: 0; border-radius: 14px; background: rgba(49,130,246,.12); color: #1b64da;
