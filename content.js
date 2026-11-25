@@ -69,29 +69,26 @@ function styleRetry(button, half) {
     const style = document.createElement("style");
     style.id = "kb-hub-retry-style";
     style.textContent = `
-      button.kb-hub-retry { display: inline-block; vertical-align: top; box-sizing: border-box; width: 100%; height: 52px; margin: 8px 0 0; padding: 0;
-        border: 0; border-radius: 14px; background: #f4f4f4; color: #525252; font: 700 16px/1 "Pretendard", -apple-system, "Malgun Gothic", sans-serif;
-        cursor: pointer; transition: background .15s, transform .1s; }
+      button.kb-hub-retry { display: inline-block; vertical-align: top; box-sizing: border-box; width: 100%; height: 48px; margin: 8px 0 0; padding: 0;
+        border: 1px solid #d9e1ec; border-radius: 10px; background: #fff; color: #173b80; font-family: inherit; font-size: 16px; font-weight: 700; cursor: pointer; }
       button.kb-hub-retry.kb-hub-half { width: calc(50% - 4px); }
-      button.kb-hub-retry:hover { background: #e0e0e0; }
-      button.kb-hub-retry:active { transform: scale(.98); }
-      button.kb-hub-retry:focus-visible { outline: 2px solid #0f62fe; outline-offset: 2px; }`;
+      button.kb-hub-retry:hover { background: #eef3fb; }
+      button.kb-hub-retry:focus-visible { outline: 2px solid #173b80; outline-offset: 2px; }`;
     document.head.append(style);
   }
   button.classList.add("kb-hub-retry");
   button.classList.toggle("kb-hub-half", half);
 }
 
-// 보조 동작이라 연한 파랑, 폭을 꽉 채움 (페이지 CSS 와 섞이지 않게 shadow DOM)
+// 포털 화면 안의 두 버튼은 포털 모양·색을 따름: 높이 48, 모서리 10, 남색 (페이지 CSS 와 섞이지 않게 shadow DOM)
 function uploadButton() {
   const host = document.createElement("kb-hub-upload");
   const root = host.attachShadow({ mode: "open" });
   root.innerHTML = `<style>
-    button { width: 100%; height: 52px; border: 0; border-radius: 14px; background: #edf5ff; color: #0043ce;
-             font: 700 16px/1 "Pretendard", -apple-system, "Malgun Gothic", sans-serif; cursor: pointer; transition: background .15s, transform .1s; }
-    button:hover { background: #d0e2ff; }
-    button:active { transform: scale(.98); }
-    button:focus-visible { outline: 2px solid #0f62fe; outline-offset: 2px; }
+    button { width: 100%; height: 48px; box-sizing: border-box; border: 1px solid #173b80; border-radius: 10px; background: #173b80; color: #fff;
+             font-family: inherit; font-size: 16px; font-weight: 700; cursor: pointer; }
+    button:hover { background: #122f66; }
+    button:focus-visible { outline: 2px solid #173b80; outline-offset: 2px; }
   </style><button type="button">GitHub에 올리기</button>`;
   root.querySelector("button").onclick = () => {
     const found = practical() ? readSql() : readCoding();
