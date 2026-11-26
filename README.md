@@ -114,3 +114,7 @@ node test.js
 ```
 
 글꼴은 [Pretendard](fonts/LICENSE.txt)(SIL Open Font License)를, 색은 [IBM Carbon Design System](https://github.com/carbon-design-system/carbon)(Apache-2.0)의 값을 씁니다.
+
+## 라이선스
+
+코드는 [MIT](LICENSE), 글꼴은 [SIL OFL 1.1](fonts/LICENSE.txt)을 따릅니다.
