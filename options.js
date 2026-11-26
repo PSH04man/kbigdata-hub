@@ -19,7 +19,15 @@ function setTheme(theme) {
 for (const b of themeBtns) b.onclick = () => { setTheme(b.dataset.theme); chrome.storage.local.set({ theme: b.dataset.theme }); };
 chrome.storage.local.get({ theme: "" }, cfg => setTheme(cfg.theme));
 
+// 저장해 둔 저장소가 있으면 제목 아래에 바로 가기
+function showRepo(text) {
+  const repo = KB.normRepo(text), link = $("repo-link");
+  link.hidden = !repo;
+  if (repo) { link.href = KB.webUrl(repo); link.textContent = `${repo} ↗`; }
+}
+
 chrome.storage.local.get(fields, cfg => {
+  showRepo(cfg.repo);
   for (const k in fields) $(k)[typeof fields[k] === "boolean" ? "checked" : "value"] = cfg[k];
 });
 $("save").onclick = () => {
@@ -32,7 +40,7 @@ $("save").onclick = () => {
     cfg.repo && !KB.normRepo(cfg.repo) ? "저장소는 '아이디/저장소' 형식으로 넣어 주세요. (예: hong/codingTest)" : "";
   if (problem) return showStatus(problem, true);
   if (cfg.repo) $("repo").value = cfg.repo = KB.normRepo(cfg.repo);
-  chrome.storage.local.set(cfg, () => showStatus("저장했어요"));
+  chrome.storage.local.set(cfg, () => { showRepo(cfg.repo); showStatus("저장했어요"); });
 };
 function showStatus(text, err) {
   $("status").textContent = text;

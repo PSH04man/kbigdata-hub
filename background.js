@@ -5,7 +5,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     config().then(cfg => filesIn(cfg, problemDir(cfg, msg), msg.ext)).then(list => reply({ names: list.map(f => f.name) }), () => reply({ names: [] }));
     return true;
   }
-  upload(msg).then(path => reply({ ok: true, path }), err => reply({ ok: false, error: KB.friendly(err.message) }));
+  upload(msg).then(done => reply({ ok: true, ...done }), err => reply({ ok: false, error: KB.friendly(err.message) }));
   return true; // 비동기 응답
 });
 
@@ -44,13 +44,15 @@ async function upload({ id, title, code, url, name, ext, problem, replace }) {
   const names = found.map(f => f.name);
   const old = names.includes(replace) ? replace : null;
   name = KB.fileName(name, ext) || old || KB.idName(id, ext); // 사람이 적은 이름이 우선
+  if (KB.clash(name, old, names)) throw new Error(`${name}.${ext} 은 다른 풀이 파일이에요. 다른 이름으로 올려 주세요.`);
   const text = n => ext === "java" ? KB.renameClass(code, n) : code;
+  const done = (path, note) => ({ path, note, url: KB.webUrl(cfg.repo, cfg.branch, path) });
   if (!old) {
-    for (const f of found) if (f.sha === await KB.blobSha(text(f.name))) return `${dir}/${f.name}.${ext} (이미 같은 코드가 있어 올리지 않았어요)`;
+    for (const f of found) if (f.sha === await KB.blobSha(text(f.name))) return done(`${dir}/${f.name}.${ext}`, "이미 같은 코드가 있어 올리지 않았어요");
     name = KB.freeName(name, names);
   }
-  // 덮어쓰며 새 이름을 주면 예전 파일은 지움. 단 그 이름이 다른 풀이 파일이면 아무것도 지우지 않음
-  const drop = old && old !== name && !names.includes(name) ? old : null;
+  // 덮어쓰며 새 이름을 주면 예전 파일은 지움
+  const drop = old && old !== name ? old : null;
   const message = `${id} ${title} (${name})\n\n${url}`;
   const date = new Date().toLocaleDateString("sv-SE"); // YYYY-MM-DD (내 PC 시간대)
 
@@ -59,7 +61,7 @@ async function upload({ id, title, code, url, name, ext, problem, replace }) {
   const files = { [`${dir}/README.md`]: KB.readme({ id, title, url, name, date, ext, problem, names: all }), [path]: text(name) };
   if (drop) files[`${dir}/${drop}.${ext}`] = null;
   const same = (await commit(cfg, files, message)) === false;
-  return same ? `${path} (이미 같은 내용이라 커밋하지 않았어요)` : path;
+  return done(path, same ? "이미 같은 내용이라 커밋하지 않았어요" : "");
 }
 
 // 여러 파일을 커밋 하나로 올리기 (Git Data API). 빈 저장소는 이 API가 안 돼서 파일별로 올림

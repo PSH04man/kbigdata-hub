@@ -23,6 +23,11 @@ const KB = {
     }[service]?.[status];
     return `${service} ${status}: ${msg || "알 수 없는 오류예요."}`;
   },
+  // GitHub 웹 주소 (path 를 주면 그 파일)
+  webUrl(repo, branch, path) {
+    const base = `https://github.com/${repo}`;
+    return path ? `${base}/blob/${[...branch.split("/"), ...path.split("/")].map(encodeURIComponent).join("/")}` : base;
+  },
   FOLDER: "k-bigdataPortal/기초350/Java", // 350제 Java 기본 폴더
   // 기본 이름: JAVA-030 → Main030, 실기 SQL 은 Query019
   idName(id, ext) {
@@ -36,6 +41,10 @@ const KB = {
     let n = 2;
     while (taken.has(`${base}_${n}`.toLowerCase())) n++;
     return `${base}_${n}`;
+  },
+  // 덮어쓰면서 적은 이름이 '다른' 풀이 파일이면 true (그 파일이 말없이 바뀜)
+  clash(name, replace, names) {
+    return Boolean(replace) && names.some(n => n !== replace && n.toLowerCase() === name.toLowerCase());
   },
   // GitHub 폴더 목록의 sha 와 비교하는 git blob 해시
   async blobSha(text) {

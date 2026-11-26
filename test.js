@@ -58,4 +58,11 @@ assert.strictEqual(KB.freeName("Main003", ["main003"]), "Main003_2");
 assert.strictEqual(KB.freeName("Main003_2", ["Main003", "Main003_2"]), "Main003_3");
 assert.ok(KB.readme({ id: "i", title: "t", url: "u", name: "b", date: "d", names: ["a", "b"] }).includes("`a.java`, `b.java`"));
 // "hello\n" 의 git blob sha (git hash-object 값)
+assert.strictEqual(KB.webUrl("a/b"), "https://github.com/a/b");
+assert.strictEqual(KB.webUrl("a/b", "dev/x", "폴더/A #1.java"), "https://github.com/a/b/blob/dev/x/%ED%8F%B4%EB%8D%94/A%20%231.java");
+assert.strictEqual(KB.clash("Main003", "Main003_2", ["Main003", "Main003_2"]), true);
+assert.strictEqual(KB.clash("main003", "Main003_2", ["Main003", "Main003_2"]), true);
+assert.strictEqual(KB.clash("main003", "Main003", ["Main003"]), false);
+assert.strictEqual(KB.clash("New", "Main003", ["Main003"]), false);
+assert.strictEqual(KB.clash("Main003", undefined, ["Main003"]), false);
 KB.blobSha("hello\n").then(sha => { assert.strictEqual(sha, "ce013625030ba8dba906f756967f9e9ca394464a"); console.log("ok"); });

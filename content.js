@@ -5,7 +5,8 @@ const STALE = "확장프로그램이 새로고침(업데이트)됐어요. 이 �
 const BAD_NAME = "이름에는 글자·숫자·_ 만 쓸 수 있고 숫자로 시작할 수 없어요.";
 const stale = () => !chrome.runtime?.id && (card.show({ head: "새로고침이 필요해요", text: STALE, tone: "err" }), true); // 확장이 갈리면 옛 탭은 먹통
 const practical = () => location.pathname?.endsWith("/practical.html");
-document.addEventListener("click", e => handle(practical() ? sqlAnswer(e) : codingAnswer(e)), true);
+// isTrusted: 사람이 누른 클릭만 (페이지 스크립트가 만든 클릭으로는 올리지 않음)
+document.addEventListener("click", e => e.isTrusted && handle(practical() ? sqlAnswer(e) : codingAnswer(e)), true);
 
 function handle(found) {
   if (!found || stale()) return;
@@ -144,7 +145,8 @@ function solved(found, url = location.href) {
       if (typed === null) return card.show({ text: "올리지 않았어요." });
       replace = typed.replace;
       name = KB.fileName(typed.name, ext);
-      if (!name) return card.show({ text: BAD_NAME, tone: "err", action: ["다시 입력", () => stale() || solved(found, url)] });
+      const problemText = !name ? BAD_NAME : KB.clash(name, replace, names) ? `${name}.${ext} 은 다른 풀이 파일이에요. 다른 이름을 적어 주세요.` : "";
+      if (problemText) return card.show({ text: problemText, tone: "err", action: ["다시 입력", () => stale() || solved(found, url)] });
     }
     send({ id, code, title, name, url, ext, replace, problem: cfg.withProblem ? problem : null });
   });
@@ -169,7 +171,7 @@ function readProblem() {
 function send(msg) {
   card.show({ text: "GitHub에 올리는 중…", keep: true });
   chrome.runtime.sendMessage(msg, res => res?.ok
-    ? card.show({ head: "저장했어요", path: res.path, tone: "ok" })
+    ? card.show({ head: "저장했어요", text: res.note, path: res.path, url: res.url, tone: "ok" })
     // 채점한 문제는 '맞혔어요'가 비활성이라, 다시 올리는 버튼은 여기에 있어야 함
     : card.show({ head: "올리지 못했어요", text: res?.error || chrome.runtime.lastError?.message, tone: "err", action: ["다시 올리기", () => stale() || send(msg)] }));
 }
@@ -196,6 +198,9 @@ const card = (() => {
     p + p { margin-top: 8px; }
     .path { margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: var(--fill); }
     .path span { display: inline-block; max-width: 100%; }
+    a.path { display: flex; gap: 8px; align-items: center; color: var(--sub); font-size: 13px; text-decoration: none; word-break: keep-all; overflow-wrap: anywhere; }
+    a.path b { margin-left: auto; color: var(--blue); font-size: 18px; }
+    a.path:hover { outline: 1px solid var(--blue); } a.path:focus-visible { outline: 2px solid var(--blue); }
     .ok h3 { color: var(--green); } .err h3 { color: var(--red); }
     fieldset { margin: 12px 0 0; padding: 0; border: 0; } legend { padding: 0; font-weight: 700; font-size: 14px; }
     label { display: flex; gap: 8px; margin-top: 6px; font-size: 13px; cursor: pointer; overflow-wrap: anywhere; }
@@ -231,13 +236,21 @@ const card = (() => {
       host.dataset.theme = t || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
     },
     // action: [버튼 이름, 할 일]. 있으면 누를 때까지 카드를 닫지 않음
-    show({ head = "", text = "", path = "", tone = "", keep = false, action }) {
-      mount((head ? `<h3>${esc(head)}</h3>` : "") + (path ? `<p class="path">${segments(path)}</p>` : `<p>${esc(text)}</p>`)
+    show({ head = "", text = "", path = "", url = "", tone = "", keep = false, action }) {
+      const where = url ? `<a class="path" href="${esc(url)}" target="_blank" rel="noopener" title="GitHub에서 보기"><span>${segments(path)}</span><b aria-hidden="true">↗</b></a>` : "";
+      mount((head ? `<h3>${esc(head)}</h3>` : "") + where + (text || !url ? `<p>${esc(text)}</p>` : "")
         + (action ? `<div class="btns"><button class="no">닫기</button><button class="yes">${esc(action[0])}</button></div>` : ""), tone);
       if (action) {
         root.querySelector(".no").onclick = close;
         root.querySelector(".yes").onclick = action[1];
-      } else if (!keep) timer = setTimeout(close, tone === "err" ? 10000 : 5000);
+      } else if (!keep) {
+        const box = root.querySelector(".c"), wait = tone === "err" || url ? 10000 : 5000;
+        const start = () => { clearTimeout(timer); timer = setTimeout(close, wait); };
+        // 마우스를 올리거나 링크에 초점이 있는 동안은 닫지 않음
+        box.onmouseenter = box.onfocusin = () => clearTimeout(timer);
+        box.onmouseleave = box.onfocusout = start;
+        start();
+      }
     },
     ask({ id, title, folder, name, ext = "java", old, note }) {
       mount(`<h3 id="kbh">GitHub에 올릴까요?</h3><p>[${esc(id)}] ${esc(title)}</p>
@@ -256,7 +269,8 @@ const card = (() => {
         const finish = v => { close(); done(v); };
         root.querySelector(".no").onclick = () => finish(null);
         root.querySelector(".yes").onclick = () => finish(answer());
-        input.onkeydown = ev => { if (ev.key === "Enter") finish(answer()); if (ev.key === "Escape") finish(null); };
+        input.onkeydown = ev => { if (ev.key === "Enter") finish(answer()); };
+        root.querySelector(".dim").onkeydown = ev => { if (ev.key === "Escape") finish(null); }; // 선택지·버튼에 초점이 있어도 닫힘
       });
     },
   };
