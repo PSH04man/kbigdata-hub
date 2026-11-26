@@ -53,4 +53,9 @@ assert.strictEqual(KB.friendly("GitHub 401: x"), "GitHub 401: x");
 assert.ok(KB.readme({ id: "J-1", title: "a<b>c", url: "u", name: "n", date: "d" }).startsWith("# [J-1] a\\<b\\>c"));
 assert.strictEqual(KB.idName("R-SQL-0019", "sql"), "Query0019");
 assert.strictEqual(KB.folderFor("x/Java", "R-SQL-0019", "sql"), "k-bigdataPortal/정보처리실기/SQL");
-console.log("ok");
+assert.strictEqual(KB.freeName("Main003", []), "Main003");
+assert.strictEqual(KB.freeName("Main003", ["main003"]), "Main003_2");
+assert.strictEqual(KB.freeName("Main003_2", ["Main003", "Main003_2"]), "Main003_3");
+assert.ok(KB.readme({ id: "i", title: "t", url: "u", name: "b", date: "d", names: ["a", "b"] }).includes("`a.java`, `b.java`"));
+// "hello\n" 의 git blob sha (git hash-object 값)
+KB.blobSha("hello\n").then(sha => { assert.strictEqual(sha, "ce013625030ba8dba906f756967f9e9ca394464a"); console.log("ok"); });

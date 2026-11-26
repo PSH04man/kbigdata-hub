@@ -28,6 +28,21 @@ const KB = {
   idName(id, ext) {
     return (ext === "sql" ? "Query" : "Main") + (String(id).match(/\d+$/)?.[0] || "");
   },
+  // 이미 있는 이름이면 _2, _3 … 을 붙임 (윈도우에서 clone 하므로 대소문자는 같은 이름으로 봄)
+  freeName(name, names) {
+    const taken = new Set(names.map(n => n.toLowerCase()));
+    if (!taken.has(name.toLowerCase())) return name;
+    const base = name.replace(/_\d+$/, "");
+    let n = 2;
+    while (taken.has(`${base}_${n}`.toLowerCase())) n++;
+    return `${base}_${n}`;
+  },
+  // GitHub 폴더 목록의 sha 와 비교하는 git blob 해시
+  async blobSha(text) {
+    const body = new TextEncoder().encode(text);
+    const data = new Uint8Array([...new TextEncoder().encode(`blob ${body.length}\0`), ...body]);
+    return [...new Uint8Array(await crypto.subtle.digest("SHA-1", data))].map(b => b.toString(16).padStart(2, "0")).join("");
+  },
   // 저장소 칸: 주소를 통째로 붙여 넣어도 "아이디/저장소"로 정리, 안 되면 null
   normRepo(text) {
     const s = String(text || "").trim().replace(/^(https?:\/\/)?(www\.)?github\.com\//i, "").replace(/^\/+|\/+$/g, "").replace(/\.git$/i, "");
@@ -57,7 +72,7 @@ const KB = {
     return t && t !== id ? `${id}. ${t}` : id;
   },
   // 문제 폴더에 같이 올리는 README (problem 이 있으면 문제 문장·입출력 예제도)
-  readme({ id, title, url, name, date, ext = "java", problem }) {
+  readme({ id, title, url, name, date, ext = "java", problem, names = [name] }) {
     const plain = t => String(t).replace(/[\\`*_<>|#[\]]/g, "\\$&"); // 문제 문장이 마크다운·HTML 로 해석되지 않게
     const block = t => { const fence = String(t).includes("```") ? "````" : "```"; return `${fence}\n${t}\n${fence}`; };
     const tags = [problem?.level, problem?.topic].filter(Boolean).map(t => ` · ${plain(t)}`).join("");
@@ -67,7 +82,7 @@ const KB = {
       const [inName, outName] = problem.labels || ["입력", "출력"];
       problem.examples.forEach(([input, output], i) => out.push(`## 입출력 예제 ${i + 1}`, plain(inName), block(input), plain(outName), block(output)));
     }
-    out.push("---", `- 풀이 파일: \`${name}.${ext}\`\n- 제출 일자: ${date}`);
+    out.push("---", `- 풀이 파일: ${names.map(n => `\`${n}.${ext}\``).join(", ")}\n- 제출 일자: ${date}`);
     return out.join("\n\n") + "\n";
   },
   // 파일 이름과 맞도록 public class(없으면 class Main) 이름 교체. new Main()·생성자·Main.x 도 같이, 문자열·주석은 그대로

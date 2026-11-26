@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "K-BigData Hub",
-  "version": "1.7.1",
+  "version": "1.7.2",
   "description": "포털 코딩 350제(Java·C·Python·Ubuntu)·실기 SQL에서 '맞혔어요'를 누르면 내 답을 GitHub에 올립니다.",
   "icons": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
   "permissions": ["storage"],

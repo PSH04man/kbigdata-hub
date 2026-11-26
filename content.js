@@ -46,38 +46,63 @@ function readCoding() {
 }
 
 // 맞힌 기록이 있으면 '맞혔어요'를 다시 누르지 않고 올리는 버튼을 둠 (포털 풀이 기록은 건드리지 않음)
+// '다시 풀기'와 'GitHub에 올리기'는 '내 풀이 결과' 박스 안 한 줄에 놓음
 function syncUploadButton() {
   for (const review of document.querySelectorAll(".study-review")) {
     const box = review.parentElement;
-    let mine = box.querySelector(":scope > kb-hub-upload");
     const show = review.querySelector('[data-grade="correct"][aria-pressed="true"]')
       && (!practical() || document.querySelector('textarea#my-answer[rows="7"]'));
-    if (!show) mine?.remove();
-    else if (!mine) box.append(mine = uploadButton());
-    // 350제의 '다시 풀기'는 꾸밈이 없어 모양만 입힘 (동작은 포털 것). 실기는 포털 디자인이 있어 둠
-    const retry = !practical() && [...box.querySelectorAll(":scope > button")].find(b => b.textContent.trim() === "다시 풀기");
-    const pair = Boolean(retry && show);
-    if (retry) styleRetry(retry, pair);
-    if (show) mine.style.cssText = pair
-      ? "display:inline-block;vertical-align:top;width:calc(50% - 4px);margin:8px 0 0 8px"
-      : "display:block;margin-top:8px";
+    let row = review.querySelector(":scope > .kb-hub-row");
+    let upload = row?.querySelector("kb-hub-upload");
+    let again = row?.querySelector(".kb-hub-again");
+    const retry = portalRetry(box);
+    if (!show) upload?.remove();
+    else upload ||= uploadButton();
+    // 350제는 채점 직후엔 포털 '다시 풀기'가 없어서 그동안만 대신할 버튼을 둠
+    if (!show || retry || practical()) again?.remove();
+    else again ||= againButton(box);
+    const wanted = [retry || (show && !practical() && again), show && upload].filter(Boolean);
+    if (!wanted.length) { row?.remove(); continue; }
+    if (!row) { addStyle(); row = document.createElement("div"); row.className = "kb-hub-row"; review.append(row); }
+    retry?.classList.add("kb-hub-retry");
+    // 이미 제자리면 건드리지 않음 (옮기면 MutationObserver 가 끝없이 돎)
+    wanted.forEach((el, i) => { if (row.children[i] !== el) row.insertBefore(el, row.children[i] || null); });
   }
 }
 
-function styleRetry(button, half) {
-  if (!document.getElementById("kb-hub-retry-style")) {
-    const style = document.createElement("style");
-    style.id = "kb-hub-retry-style";
-    style.textContent = `
-      button.kb-hub-retry { display: inline-block; vertical-align: top; box-sizing: border-box; width: 100%; height: 48px; margin: 8px 0 0; padding: 0;
-        border: 1px solid #d9e1ec; border-radius: 10px; background: #fff; color: #173b80; font-family: inherit; font-size: 16px; font-weight: 700; cursor: pointer; }
-      button.kb-hub-retry.kb-hub-half { width: calc(50% - 4px); }
-      button.kb-hub-retry:hover { background: #eef3fb; }
-      button.kb-hub-retry:focus-visible { outline: 2px solid #173b80; outline-offset: 2px; }`;
-    document.head.append(style);
-  }
-  button.classList.add("kb-hub-retry");
-  button.classList.toggle("kb-hub-half", half);
+function portalRetry(box) {
+  return [...box.querySelectorAll("button:not(.kb-hub-again)")].find(b => b.textContent.trim() === "다시 풀기");
+}
+
+// 포털은 다시 그릴 때만 '다시 풀기'를 만듦 → 누른 순간 정답 칸을 닫았다 열어 만들게 하고 그것을 누름 (풀이 기록 처리는 포털 몫)
+function againButton(box) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "다시 풀기";
+  button.className = "kb-hub-retry kb-hub-again";
+  button.onclick = () => {
+    const answer = document.querySelector("#coding-answer-button");
+    if (!answer) return card.show({ head: "다시 풀 수 없어요", text: CHANGED, tone: "err" });
+    delete box.dataset.questionId;
+    answer.click();
+    answer.click();
+    portalRetry(box)?.click();
+  };
+  return button;
+}
+
+function addStyle() {
+  if (document.getElementById("kb-hub-style")) return;
+  const style = document.createElement("style");
+  style.id = "kb-hub-style";
+  style.textContent = `
+    .kb-hub-row { display: flex; gap: 8px; margin-top: 8px; }
+    .kb-hub-row > * { flex: 1; min-width: 0; }
+    .kb-hub-row button.kb-hub-retry { box-sizing: border-box; height: 48px; margin: 0; padding: 0; border: 1px solid #d9e1ec; border-radius: 10px;
+      background: #fff; color: #173b80; font-family: inherit; font-size: 16px; font-weight: 700; cursor: pointer; }
+    .kb-hub-row button.kb-hub-retry:hover { background: #eef3fb; }
+    .kb-hub-row button.kb-hub-retry:focus-visible { outline: 2px solid #173b80; outline-offset: 2px; }`;
+  document.head.append(style);
 }
 
 // 포털 화면 안의 두 버튼은 포털 모양·색을 따름: 높이 48, 모서리 10, 남색 (페이지 CSS 와 섞이지 않게 shadow DOM)
@@ -110,16 +135,18 @@ function solved(found, url = location.href) {
   chrome.storage.local.get({ askFirst: true, withProblem: true, folder: KB.FOLDER, theme: "" }, async cfg => {
     card.theme(cfg.theme);
     card.show({ text: "GitHub 확인 중…", keep: true });
-    // 같은 문제를 다시 올리면 GitHub 폴더에 있는 이름을 그대로
-    const old = (await chrome.runtime.sendMessage({ type: "existingName", id, title, ext }).catch(() => null))?.name;
-    let name = old || KB.idName(id, ext);
-    if (cfg.askFirst || note) {
+    const names = (await chrome.runtime.sendMessage({ type: "existingNames", id, title, ext }).catch(() => null))?.names || [];
+    const old = names.at(-1);
+    let name = KB.freeName(old || KB.idName(id, ext), names), replace;
+    // 이미 올린 풀이가 있으면 덮어쓸지 추가할지 골라야 해서, 설정과 상관없이 물어봄
+    if (cfg.askFirst || note || old) {
       const typed = await card.ask({ id, title, folder: KB.folderFor(cfg.folder, id, ext), name, ext, old, note });
       if (typed === null) return card.show({ text: "올리지 않았어요." });
-      name = KB.fileName(typed, ext);
+      replace = typed.replace;
+      name = KB.fileName(typed.name, ext);
       if (!name) return card.show({ text: BAD_NAME, tone: "err", action: ["다시 입력", () => stale() || solved(found, url)] });
     }
-    send({ id, code, title, name, url, ext, problem: cfg.withProblem ? problem : null });
+    send({ id, code, title, name, url, ext, replace, problem: cfg.withProblem ? problem : null });
   });
 }
 
@@ -170,9 +197,11 @@ const card = (() => {
     .path { margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: var(--fill); }
     .path span { display: inline-block; max-width: 100%; }
     .ok h3 { color: var(--green); } .err h3 { color: var(--red); }
-    input { width: 100%; box-sizing: border-box; height: 44px; margin: 14px 0 4px; padding: 0 14px; border: 2px solid transparent;
+    fieldset { margin: 12px 0 0; padding: 0; border: 0; } legend { padding: 0; font-weight: 700; font-size: 14px; }
+    label { display: flex; gap: 8px; margin-top: 6px; font-size: 13px; cursor: pointer; overflow-wrap: anywhere; }
+    .name { width: 100%; box-sizing: border-box; height: 44px; margin: 14px 0 4px; padding: 0 14px; border: 2px solid transparent;
             border-radius: 12px; background: var(--fill); color: var(--text); font: inherit; outline: none; }
-    input:focus { border-color: var(--blue); }
+    .name:focus { border-color: var(--blue); }
     .btns { display: flex; gap: 8px; margin-top: 12px; }
     button { flex: 1; height: 44px; border: 0; border-radius: 12px; font: inherit; font-weight: 700; cursor: pointer; }
     .no { background: var(--fill); color: var(--text); } .yes { background: var(--blue); color: #fff; }`;
@@ -213,17 +242,21 @@ const card = (() => {
     ask({ id, title, folder, name, ext = "java", old, note }) {
       mount(`<h3 id="kbh">GitHub에 올릴까요?</h3><p>[${esc(id)}] ${esc(title)}</p>
         <p class="path">${segments(folder + "/")}<br>${segments(KB.dirName(id, title) + "/(이름)." + ext)}</p>
-        ${old ? `<p>이름을 바꾸면 예전 파일(${esc(old)}.${ext})은 지워져요.</p>` : ""}
+        ${old ? `<fieldset><legend>이미 올린 풀이가 있어요</legend>
+          <label><input type="radio" name="how" value="add" checked> 새 파일로 추가 (예전 풀이는 그대로)</label>
+          <label><input type="radio" name="how" value="replace"> ${esc(old)}.${ext} 덮어쓰기 (이름을 바꾸면 이 파일은 지워져요)</label></fieldset>` : ""}
         ${note ? `<p>${esc(note)}</p>` : ""}
-        <input aria-label="파일 이름" value="${esc(name)}" spellcheck="false">
+        <input class="name" aria-label="파일 이름" value="${esc(name)}" spellcheck="false">
         <div class="btns"><button class="no">취소</button><button class="yes">올리기</button></div>`, "", true);
-      const input = root.querySelector("input");
+      const input = root.querySelector(".name");
       input.focus(); input.select();
+      for (const radio of root.querySelectorAll("[name=how]")) radio.onchange = () => { input.value = radio.value === "add" ? name : old; };
+      const answer = () => ({ name: input.value, replace: root.querySelector("[value=replace]:checked") ? old : undefined });
       return new Promise(done => {
         const finish = v => { close(); done(v); };
         root.querySelector(".no").onclick = () => finish(null);
-        root.querySelector(".yes").onclick = () => finish(input.value);
-        input.onkeydown = ev => { if (ev.key === "Enter") finish(input.value); if (ev.key === "Escape") finish(null); };
+        root.querySelector(".yes").onclick = () => finish(answer());
+        input.onkeydown = ev => { if (ev.key === "Enter") finish(answer()); if (ev.key === "Escape") finish(null); };
       });
     },
   };

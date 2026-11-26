@@ -1,8 +1,8 @@
 importScripts("lib.js");
 
 chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
-  if (msg.type === "existingName") { // 다른 PC에서 이미 올린 이름이 있으면 그걸 다시 씀
-    config().then(cfg => fileIn(cfg, problemDir(cfg, msg), msg.ext)).then(name => reply({ name }), () => reply({ name: null }));
+  if (msg.type === "existingNames") { // 다른 PC에서 올린 것까지, 이 문제의 풀이 파일 이름
+    config().then(cfg => filesIn(cfg, problemDir(cfg, msg), msg.ext)).then(list => reply({ names: list.map(f => f.name) }), () => reply({ names: [] }));
     return true;
   }
   upload(msg).then(path => reply({ ok: true, path }), err => reply({ ok: false, error: KB.friendly(err.message) }));
@@ -24,27 +24,40 @@ async function config() {
 // 문제마다 폴더 하나라 다른 문제와 이름이 안 겹침
 const problemDir = (cfg, { id, title, ext }) => `${KB.folderFor(cfg.folder, id, ext)}/${KB.dirName(id, title)}`;
 
-// 문제 폴더에 이미 있는 풀이 파일의 이름 (없으면 null)
-async function fileIn(cfg, dir, ext) {
+// 문제 폴더에 이미 있는 풀이 파일들 (확장자 뗀 이름과 sha). 번호순이라 마지막이 가장 최근 풀이
+// shortcut: 직접 지은 이름이 섞이면 '마지막'은 이름순일 뿐, 날짜순이 필요해지면 커밋 기록을 읽을 것
+async function filesIn(cfg, dir, ext) {
   const res = await gh(cfg, dir);
-  if (res.status === 404) return null;
+  if (res.status === 404) return [];
   if (!res.ok) throw new Error(KB.explain("GitHub", res.status));
   const list = await res.json();
-  const file = Array.isArray(list) && list.find(f => f.type === "file" && f.name.endsWith("." + ext));
-  return file ? file.name.slice(0, -ext.length - 1) : null;
+  return (Array.isArray(list) ? list : []).filter(f => f.type === "file" && f.name.endsWith("." + ext))
+    .map(f => ({ name: f.name.slice(0, -ext.length - 1), sha: f.sha }))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
 }
 
-async function upload({ id, title, code, url, name, ext, problem }) {
+// replace: 덮어쓸 파일 이름. 없으면 새 파일로 추가 (있는 파일은 건드리지 않음)
+async function upload({ id, title, code, url, name, ext, problem, replace }) {
   const cfg = await config();
   const dir = problemDir(cfg, { id, title, ext });
-  const old = await fileIn(cfg, dir, ext);
+  const found = await filesIn(cfg, dir, ext);
+  const names = found.map(f => f.name);
+  const old = names.includes(replace) ? replace : null;
   name = KB.fileName(name, ext) || old || KB.idName(id, ext); // 사람이 적은 이름이 우선
+  const text = n => ext === "java" ? KB.renameClass(code, n) : code;
+  if (!old) {
+    for (const f of found) if (f.sha === await KB.blobSha(text(f.name))) return `${dir}/${f.name}.${ext} (이미 같은 코드가 있어 올리지 않았어요)`;
+    name = KB.freeName(name, names);
+  }
+  // 덮어쓰며 새 이름을 주면 예전 파일은 지움. 단 그 이름이 다른 풀이 파일이면 아무것도 지우지 않음
+  const drop = old && old !== name && !names.includes(name) ? old : null;
   const message = `${id} ${title} (${name})\n\n${url}`;
   const date = new Date().toLocaleDateString("sv-SE"); // YYYY-MM-DD (내 PC 시간대)
 
   const path = `${dir}/${name}.${ext}`;
-  const files = { [`${dir}/README.md`]: KB.readme({ id, title, url, name, date, ext, problem }), [path]: ext === "java" ? KB.renameClass(code, name) : code };
-  if (old && old !== name) files[`${dir}/${old}.${ext}`] = null; // 이름을 바꾸면 예전 파일은 지움 (파일이 2개가 되지 않게)
+  const all = [...new Set([...names.filter(n => n !== drop), name])];
+  const files = { [`${dir}/README.md`]: KB.readme({ id, title, url, name, date, ext, problem, names: all }), [path]: text(name) };
+  if (drop) files[`${dir}/${drop}.${ext}`] = null;
   const same = (await commit(cfg, files, message)) === false;
   return same ? `${path} (이미 같은 내용이라 커밋하지 않았어요)` : path;
 }
