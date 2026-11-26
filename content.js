@@ -199,7 +199,7 @@ const card = (() => {
     .path { margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: var(--fill); }
     .path span { display: inline-block; max-width: 100%; }
     a.path { display: flex; gap: 8px; align-items: center; color: var(--sub); font-size: 13px; text-decoration: none; word-break: keep-all; overflow-wrap: anywhere; }
-    a.path b { margin-left: auto; color: var(--blue); font-size: 18px; }
+    a.path svg { flex: none; margin-left: auto; color: var(--sub); }
     a.path:hover { outline: 1px solid var(--blue); } a.path:focus-visible { outline: 2px solid var(--blue); }
     .ok h3 { color: var(--green); } .err h3 { color: var(--red); }
     fieldset { margin: 12px 0 0; padding: 0; border: 0; } legend { padding: 0; font-weight: 700; font-size: 14px; }
@@ -237,7 +237,7 @@ const card = (() => {
     },
     // action: [버튼 이름, 할 일]. 있으면 누를 때까지 카드를 닫지 않음
     show({ head = "", text = "", path = "", url = "", tone = "", keep = false, action }) {
-      const where = url ? `<a class="path" href="${esc(url)}" target="_blank" rel="noopener" title="GitHub에서 보기"><span>${segments(path)}</span><b aria-hidden="true">↗</b></a>` : "";
+      const where = url ? `<a class="path" href="${esc(url)}" target="_blank" rel="noopener" title="GitHub에서 보기"><span>${segments(path)}</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>` : "";
       mount((head ? `<h3>${esc(head)}</h3>` : "") + where + (text || !url ? `<p>${esc(text)}</p>` : "")
         + (action ? `<div class="btns"><button class="no">닫기</button><button class="yes">${esc(action[0])}</button></div>` : ""), tone);
       if (action) {
@@ -271,6 +271,11 @@ const card = (() => {
         root.querySelector(".yes").onclick = () => finish(answer());
         input.onkeydown = ev => { if (ev.key === "Enter") finish(answer()); };
         root.querySelector(".dim").onkeydown = ev => { if (ev.key === "Escape") finish(null); }; // 선택지·버튼에 초점이 있어도 닫힘
+        // 창 바깥(어두운 곳) 클릭이면 닫음. 창 안에서 글자를 끌다 밖에서 놓은 것은 제외
+        const dim = root.querySelector(".dim");
+        let pressedOutside = false;
+        dim.onmousedown = ev => { pressedOutside = ev.target === dim; };
+        dim.onclick = ev => { if (pressedOutside && ev.target === dim) finish(null); };
       });
     },
   };
